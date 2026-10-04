@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+<h1 class="page-title">Stock</h1>
+<p class="page-subtitle">Monitor and update current stock levels.</p>
+
+<div id="message" class="message"></div>
+
+<div class="toolbar">
+    <input
+        id="stockSearch"
+        type="text"
+        placeholder="Search product"
+    >
+</div>
+
+<section class="panel">
+
+    <div class="panel-header">
+        <h2>Stock Records</h2>
+        <span id="stockCount"></span>
+    </div>
+
+    <div class="panel-body table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Reorder Level</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="stockTable"></tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+<div class="pagination">
+    <button class="btn btn-small" id="previousPage">Previous</button>
+    <span id="pageInfo"></span>
+    <button class="btn btn-small" id="nextPage">Next</button>
+</div>
+
+<div class="footer">Inventory Management System</div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+let currentPage = 1;
+let totalPages = 1;
+
+async function loadStock() {
+
+    try {
+
+        const search = document.getElementById("stockSearch").value.trim();
+
+        const data = await api(
+            `/api/stock?page=${currentPage}&search=${encodeURIComponent(search)}`
+        );
+
+        const rows = data.stock || [];
+
+        totalPages = data.totalPages || 1;
+
+        document.getElementById("stockCount").textContent =
+            `${data.total} products`;
+
+        document.getElementById("pageInfo").textContent =
+            `Page ${data.page} of ${totalPages}`;
+
+        document.getElementById("previousPage").disabled =
+            currentPage <= 1;
+
+        document.getElementById("nextPage").disabled =
+            currentPage >= totalPages;
+
+        document.getElementById("stockTable").innerHTML =
+            rows.length
+            ? rows.map(s => `
+
+                <tr>
+
+                    <td>${escapeHtml(s.product_name)}</td>
+
+                    <td>${escapeHtml(s.category_name || "-")}</td>
+
+                    <td>
+                        <input
+                            id="qty-${s.product_id}"
+                            type="number"
+                            min="0"
+                            value="${s.quantity}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            id="reorder-${s.product_id}"
+                            type="number"
+                            min="0"
+                            value="${s.reorder_level}"
+                        >
+                    </td>
+
+                    <td>
+                        <span class="status ${s.stock_status === "Low Stock" ? "low" : "good"}">
+                            ${s.stock_status}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${s.last_updated
+                            ? new Date(s.last_updated).toLocaleString()
+                            : "-"
+                        }
+                    </td>
+
+                    <td>
+                        <button
+                            class="btn btn-small"
+                            onclick="updateStock(${s.product_id})">
+                            Update
+                        </button>
+                    </td>
+
+                </tr>
+
+            `).join("")
+            : '<tr><td colspan="7" class="empty">No stock records found.</td></tr>';
+
+    } catch (error) {
+
+        showMessage("message", error.message, "error");
+
+    }
+
+}
+
+
+async function updateStock(productId) {
+
+    try {
+
+        const quantity =
+            document.getElementById(`qty-${productId}`).value;
+
+        const reorder_level =
+            document.getElementById(`reorder-${productId}`).value;
+
+        await api(`/api/stock/${productId}`, {
+
+            method: "PUT",
+
+            body: JSON.stringify({
+                quantity: quantity,
+                reorder_level: reorder_level
+            })
+
+        });
+
+        showMessage(
+            "message",
+            "Stock updated successfully."
+        );
+
+        await loadStock();
+
+    } catch (error) {
+
+        showMessage(
+            "message",
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+document.getElementById("previousPage").addEventListener("click", () => {
+
+    if (currentPage > 1) {
+
+        currentPage--;
+
+        loadStock();
+
+    }
+
+});
+
+
+document.getElementById("nextPage").addEventListener("click", () => {
+
+    if (currentPage < totalPages) {
+
+        currentPage++;
+
+        loadStock();
+
+    }
+
+});
+
+
+document.getElementById("stockSearch").addEventListener("input", () => {
+
+    currentPage = 1;
+
+    loadStock();
+
+});
+
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    loadStock();
+
+});
+
+</script>
+
+</body>
+</html>

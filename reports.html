@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+    <div class="topbar-right">
+        <button class="logout-button" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+<h1 class="page-title">Reports</h1>
+<p class="page-subtitle">Summary of inventory transactions and stock.</p>
+
+<div class="dashboard-grid">
+    <div class="stat-box">
+        <div class="stat-label">Purchased Units</div>
+        <div class="stat-value" id="purchasedUnits">0</div>
+    </div>
+
+    <div class="stat-box">
+        <div class="stat-label">Sold Units</div>
+        <div class="stat-value" id="soldUnits">0</div>
+    </div>
+
+    <div class="stat-box">
+        <div class="stat-label">Purchase Value</div>
+        <div class="stat-value" id="purchaseValue">₹0.00</div>
+    </div>
+
+    <div class="stat-box">
+        <div class="stat-label">Sales Value</div>
+        <div class="stat-value" id="salesValue">₹0.00</div>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Recent Purchases</h2>
+    </div>
+
+    <div class="panel-body table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Supplier</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="purchaseTable"></tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Recent Sales</h2>
+    </div>
+
+    <div class="panel-body table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Customer</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="salesTable"></tbody>
+        </table>
+    </div>
+</section>
+
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+async function loadReports() {
+    try {
+        const dashboard = await api("/api/dashboard");
+
+        document.getElementById("purchasedUnits").textContent =
+            dashboard.purchased_units;
+
+        document.getElementById("soldUnits").textContent =
+            dashboard.sold_units;
+
+        document.getElementById("purchaseValue").textContent =
+            "₹" + Number(dashboard.purchase_value).toFixed(2);
+
+        document.getElementById("salesValue").textContent =
+            "₹" + Number(dashboard.sales_value).toFixed(2);
+
+        const purchases = await api("/api/purchases");
+
+        document.getElementById("purchaseTable").innerHTML =
+            purchases.length
+                ? purchases.slice(0, 10).map(p => `
+                    <tr>
+                        <td>${p.purchase_id}</td>
+                        <td>${escapeHtml(p.product_name)}</td>
+                        <td>${escapeHtml(p.supplier_name)}</td>
+                        <td>${p.quantity}</td>
+                        <td>₹${Number(p.purchase_price).toFixed(2)}</td>
+                        <td>${p.purchase_date}</td>
+                    </tr>
+                `).join("")
+                : '<tr><td colspan="6" class="empty">No purchases found.</td></tr>';
+
+        const sales = await api("/api/sales");
+
+        document.getElementById("salesTable").innerHTML =
+            sales.length
+                ? sales.slice(0, 10).map(s => `
+                    <tr>
+                        <td>${s.sale_id}</td>
+                        <td>${escapeHtml(s.product_name)}</td>
+                        <td>${escapeHtml(s.customer_name)}</td>
+                        <td>${s.quantity}</td>
+                        <td>₹${Number(s.sale_price).toFixed(2)}</td>
+                        <td>${s.sale_date}</td>
+                    </tr>
+                `).join("")
+                : '<tr><td colspan="6" class="empty">No sales found.</td></tr>';
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadReports);
+
+setInterval(loadReports, 5000);
+</script>
+
+</body>
+</html>

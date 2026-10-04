@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delivery | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+    <button class="menu-button" id="menuButton">☰</button>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+    <h1 class="page-title">Delivery</h1>
+    <p class="page-subtitle">Manage delivery information for outgoing products.</p>
+
+    <div id="message" class="message"></div>
+
+    <section class="panel">
+
+        <div class="panel-header">
+            <h2>Add Delivery</h2>
+        </div>
+
+        <div class="panel-body">
+
+            <form id="deliveryForm">
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label>Sale</label>
+                        <select id="sale_id" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Delivery Date</label>
+                        <input id="delivery_date" type="date">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Delivery Address</label>
+                        <input id="delivery_address">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Delivery Status</label>
+                        <select id="delivery_status">
+                            <option>Pending</option>
+                            <option>Dispatched</option>
+                            <option>Delivered</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn" type="submit">
+                        Add Delivery
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </section>
+
+    <section class="panel">
+
+        <div class="panel-header">
+            <h2>Delivery List</h2>
+        </div>
+
+        <div class="panel-body table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Sale ID</th>
+                        <th>Product</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="deliveryTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    <div class="footer">
+        Inventory Management System
+    </div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+async function loadSales() {
+
+    const sales = await api("/api/sales");
+
+    document.getElementById("sale_id").innerHTML =
+        '<option value="">Select Sale</option>' +
+        sales.map(s => `
+            <option value="${s.sale_id}">
+                Sale #${s.sale_id} - ${escapeHtml(s.product_name)}
+            </option>
+        `).join("");
+}
+
+async function loadDeliveries() {
+
+    const rows = await api("/api/deliveries");
+
+    document.getElementById("deliveryTable").innerHTML =
+        rows.length
+            ? rows.map(d => `
+                <tr>
+                    <td>${d.delivery_id}</td>
+                    <td>${d.sale_id}</td>
+                    <td>${escapeHtml(d.product_name)}</td>
+                    <td>${escapeHtml(d.customer_name)}</td>
+                    <td>${d.delivery_date || "-"}</td>
+                    <td>${escapeHtml(d.delivery_address || "-")}</td>
+                    <td>
+                        <select onchange="updateDeliveryStatus(${d.delivery_id}, this.value)">
+                            ${[
+                                "Pending",
+                                "Dispatched",
+                                "Delivered",
+                                "Cancelled"
+                            ].map(status => `
+                                <option ${status === d.delivery_status ? "selected" : ""}>
+                                    ${status}
+                                </option>
+                            `).join("")}
+                        </select>
+                    </td>
+                    <td>
+                        <button
+                            class="btn btn-small btn-danger"
+                            onclick="deleteDelivery(${d.delivery_id})">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join("")
+            : `
+                <tr>
+                    <td colspan="8" class="empty">
+                        No deliveries found.
+                    </td>
+                </tr>
+            `;
+}
+
+async function updateDeliveryStatus(id, status) {
+
+    try {
+
+        await api(`/api/deliveries/${id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+                delivery_status: status
+            })
+        });
+
+        await loadDeliveries();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+}
+
+async function deleteDelivery(id) {
+
+    if (!confirm("Delete this delivery?")) {
+        return;
+    }
+
+    try {
+
+        await api(`/api/deliveries/${id}`, {
+            method: "DELETE"
+        });
+
+        await loadDeliveries();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    document.getElementById("delivery_date").value = dateToday();
+
+    await loadSales();
+    await loadDeliveries();
+
+    document.getElementById("deliveryForm").addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+            try {
+
+                await api("/api/deliveries", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        sale_id: document.getElementById("sale_id").value,
+                        delivery_date: document.getElementById("delivery_date").value,
+                        delivery_address: document.getElementById("delivery_address").value.trim(),
+                        delivery_status: document.getElementById("delivery_status").value
+                    })
+                });
+
+                event.target.reset();
+
+                document.getElementById("delivery_date").value =
+                    dateToday();
+
+                showMessage(
+                    "message",
+                    "Delivery added successfully."
+                );
+
+                await loadDeliveries();
+
+            } catch (error) {
+
+                showMessage(
+                    "message",
+                    error.message,
+                    "error"
+                );
+
+            }
+        }
+    );
+});
+
+</script>
+
+</body>
+</html>

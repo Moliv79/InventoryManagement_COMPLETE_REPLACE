@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+    <div class="topbar-right">
+    <button class="logout-button" onclick="logout()">Logout</button>
+</div>
+</header>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+<main class="main">
+
+<h1 class="page-title">Dashboard</h1>
+<p class="page-subtitle">Overview of current inventory and business records.</p>
+
+<div class="dashboard-grid">
+    <div class="stat-box"><div class="stat-label">Total Products</div><div class="stat-value" id="totalProducts">0</div></div>
+    <div class="stat-box"><div class="stat-label">Categories</div><div class="stat-value" id="totalCategories">0</div></div>
+    <div class="stat-box"><div class="stat-label">Suppliers</div><div class="stat-value" id="totalSuppliers">0</div></div>
+    <div class="stat-box"><div class="stat-label">Customers</div><div class="stat-value" id="totalCustomers">0</div></div>
+    <div class="stat-box"><div class="stat-label">Total Stock</div><div class="stat-value" id="totalStock">0</div></div>
+    <div class="stat-box"><div class="stat-label">Low Stock</div><div class="stat-value" id="lowStock">0</div></div>
+    <div class="stat-box"><div class="stat-label">Orders</div><div class="stat-value" id="totalOrders">0</div></div>
+    <div class="stat-box"><div class="stat-label">Order Value</div><div class="stat-value" id="orderValue">₹0.00</div></div>
+</div>
+
+<div class="cards-2">
+    <section class="panel">
+        <div class="panel-header"><h2>Low Stock Products</h2><a class="btn btn-small" href="stock.html">Manage Stock</a></div>
+        <div class="panel-body table-wrap">
+            <table>
+                <thead><tr><th>ID</th><th>Product</th><th>Category</th><th>Qty</th><th>Reorder Level</th></tr></thead>
+                <tbody id="dashboardLowStock"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header"><h2>Stock by Category</h2></div>
+        <div class="panel-body" id="categoryBars"></div>
+    </section>
+</div>
+
+<section class="panel">
+    <div class="panel-header"><h2>Inventory Summary</h2></div>
+    <div class="panel-body">
+        <div class="dashboard-grid">
+            <div class="info-card"><h3 id="purchasedUnits">0</h3><p>Purchased Units</p></div>
+            <div class="info-card"><h3 id="soldUnits">0</h3><p>Sold Units</p></div>
+            <div class="info-card"><h3 id="purchaseValue">₹0.00</h3><p>Purchase Value</p></div>
+            <div class="info-card"><h3 id="salesValue">₹0.00</h3><p>Sales Value</p></div>
+        </div>
+    </div>
+</section>
+
+</main>
+<script src="script.js"></script>
+
+<script>
+async function loadDashboard() {
+    try {
+        const data = await api("/api/dashboard");
+
+        document.getElementById("totalProducts").textContent = data.total_products;
+        document.getElementById("totalCategories").textContent = data.total_categories;
+        document.getElementById("totalSuppliers").textContent = data.total_suppliers;
+        document.getElementById("totalCustomers").textContent = data.total_customers;
+        document.getElementById("totalStock").textContent = data.total_stock;
+        document.getElementById("lowStock").textContent = data.low_stock;
+        document.getElementById("totalOrders").textContent = data.total_orders;
+        document.getElementById("orderValue").textContent = "₹" + Number(data.order_value).toFixed(2);
+
+        document.getElementById("purchasedUnits").textContent = data.purchased_units;
+        document.getElementById("soldUnits").textContent = data.sold_units;
+        document.getElementById("purchaseValue").textContent = "₹" + Number(data.purchase_value).toFixed(2);
+        document.getElementById("salesValue").textContent = "₹" + Number(data.sales_value).toFixed(2);
+
+        const lowStock = await api("/api/low-stock");
+
+        document.getElementById("dashboardLowStock").innerHTML =
+            lowStock.length
+                ? lowStock.map(item => `
+                    <tr>
+                        <td>${item.product_id}</td>
+                        <td>${escapeHtml(item.product_name)}</td>
+                        <td>${escapeHtml(item.category_name || "-")}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.reorder_level}</td>
+                    </tr>
+                `).join("")
+                : '<tr><td colspan="5" class="empty">No low stock products.</td></tr>';
+
+        const categoryStock = await api("/api/category-stock");
+
+        const maxStock = Math.max(
+            ...categoryStock.map(item => Number(item.total_stock)),
+            1
+        );
+
+        document.getElementById("categoryBars").innerHTML =
+            categoryStock.length
+                ? categoryStock.map(item => `
+                    <div class="category-bar-row">
+                        <div class="category-bar-label">
+                            <span>${escapeHtml(item.category_name)}</span>
+                            <span>${item.total_stock}</span>
+                        </div>
+                        <div class="category-bar">
+                            <div class="category-bar-fill"
+                                 style="width:${(Number(item.total_stock) / maxStock) * 100}%">
+                            </div>
+                        </div>
+                    </div>
+                `).join("")
+                : '<p class="empty">No category stock data.</p>';
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboard);
+
+setInterval(loadDashboard, 5000);
+</script>
+</body>
+</html>

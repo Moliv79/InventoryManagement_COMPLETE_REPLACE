@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Details | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+<main class="main">
+
+<h1 class="page-title">Product Details</h1>
+<p class="page-subtitle"><a href="products.html">← Back to Products</a></p>
+
+<div id="message" class="message"></div>
+
+<section class="panel">
+    <div class="panel-header"><h2 id="productName">Product</h2><span id="productStatus"></span></div>
+    <div class="panel-body">
+        <div class="detail-list" id="details"></div>
+        <div class="form-actions">
+            <button class="btn btn-danger" id="deleteBtn">Delete Product</button>
+            <a class="btn btn-secondary" href="products.html">Back</a>
+        </div>
+    </div>
+</section>
+
+<div class="footer">Inventory Management System</div>
+</main>
+<script src="script.js"></script>
+
+<script>
+const productId = new URLSearchParams(location.search).get("id");
+
+async function loadProduct() {
+    const p = await api(`/api/products/${productId}`);
+    document.getElementById("productName").textContent = p.product_name;
+    document.getElementById("productStatus").innerHTML =
+        `<span class="status ${Number(p.quantity) <= Number(p.reorder_level) ? "low" : "good"}">${Number(p.quantity) <= Number(p.reorder_level) ? "Low Stock" : "In Stock"}</span>`;
+
+    const rows = [
+        ["Product ID", p.product_id],
+        ["Category", p.category_name || "-"],
+        ["Sub Category", p.sub_category || "-"],
+        ["Brand", p.brand || "-"],
+        ["Sale Price", money(p.sale_price)],
+        ["Market Price", money(p.market_price)],
+        ["Product Type", p.product_type || "-"],
+        ["Rating", p.rating ?? "-"],
+        ["Current Stock", p.quantity],
+        ["Reorder Level", p.reorder_level],
+        ["Godown", p.godown_name || "-"],
+["Location", p.godown_location || "-"],
+        ["Description", p.description || "-"]
+    ];
+
+    document.getElementById("details").innerHTML = rows.map(r =>
+        `<div class="detail-label">${escapeHtml(r[0])}</div><div>${escapeHtml(r[1])}</div>`
+    ).join("");
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    if (!productId) {
+        document.getElementById("message").textContent = "Product ID is missing.";
+        document.getElementById("message").className = "message show error";
+        return;
+    }
+
+    try {
+        await loadProduct();
+    } catch (error) {
+        showMessage("message", error.message, "error");
+    }
+
+    document.getElementById("deleteBtn").addEventListener("click", async () => {
+        if (!confirm("Delete this product?")) return;
+        try {
+            await api(`/api/products/${productId}`, { method: "DELETE" });
+            location.href = "products.html";
+        } catch (error) {
+            showMessage("message", error.message, "error");
+        }
+    });
+});
+</script>
+
+</body>
+</html>

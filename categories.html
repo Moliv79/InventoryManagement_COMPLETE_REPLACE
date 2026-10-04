@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categories | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+<main class="main">
+
+<h1 class="page-title">Categories</h1>
+<p class="page-subtitle">Manage product categories.</p>
+
+<div id="message" class="message"></div>
+
+<section class="panel">
+    <div class="panel-header"><h2>Add Category</h2></div>
+    <div class="panel-body">
+        <form id="categoryForm">
+            <div class="form-grid">
+                <div class="form-group"><label>Category Name</label><input id="category_name" required></div>
+                <div class="form-group"><label>Description</label><input id="description"></div>
+            </div>
+            <div class="form-actions"><button class="btn">Add Category</button></div>
+        </form>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header"><h2>Category List</h2></div>
+    <div class="panel-body table-wrap">
+        <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Products</th><th>Action</th></tr></thead>
+            <tbody id="categoryTable"></tbody>
+        </table>
+    </div>
+</section>
+
+</main>
+<script src="script.js"></script>
+
+<script>
+async function loadCategoriesPage() {
+    const rows = await api("/api/categories");
+    document.getElementById("categoryTable").innerHTML = rows.length ? rows.map(c => `
+        <tr>
+            <td>${c.category_id}</td>
+            <td>${escapeHtml(c.category_name)}</td>
+            <td>${escapeHtml(c.description || "-")}</td>
+            <td>${c.product_count}</td>
+            <td><button class="btn btn-small btn-danger" onclick="deleteCategory(${c.category_id})">Delete</button></td>
+        </tr>
+    `).join("") : '<tr><td colspan="5" class="empty">No categories found.</td></tr>';
+}
+
+async function deleteCategory(id) {
+    if (!confirm("Delete this category?")) return;
+    try {
+        await api(`/api/categories/${id}`, { method: "DELETE" });
+        await loadCategoriesPage();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadCategoriesPage();
+    document.getElementById("categoryForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        try {
+            await api("/api/categories", {
+                method: "POST",
+                body: JSON.stringify({
+                    category_name: document.getElementById("category_name").value.trim(),
+                    description: document.getElementById("description").value.trim()
+                })
+            });
+            event.target.reset();
+            showMessage("message", "Category added successfully.");
+            await loadCategoriesPage();
+        } catch (error) {
+            showMessage("message", error.message, "error");
+        }
+    });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suppliers | Inventory Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+    <h1 class="page-title">Suppliers</h1>
+    <p class="page-subtitle">Manage supplier information.</p>
+
+    <section class="panel">
+
+        <div class="panel-header">
+            <h2>Add Supplier</h2>
+        </div>
+
+        <div class="panel-body">
+
+            <form id="supplierForm">
+
+                <div class="form-grid">
+
+                    <div>
+                        <label>Supplier Name</label>
+                        <input type="text" id="supplierName" required>
+                    </div>
+
+                    <div>
+                        <label>Email</label>
+                        <input type="email" id="supplierEmail">
+                    </div>
+
+                    <div>
+                        <label>Phone</label>
+                        <input type="text" id="supplierPhone">
+                    </div>
+
+                    <div>
+                        <label>Address</label>
+                        <input type="text" id="supplierAddress">
+                    </div>
+
+                </div>
+
+                <button type="submit" class="btn">Add Supplier</button>
+
+            </form>
+
+        </div>
+
+    </section>
+
+    <section class="panel">
+
+        <div class="panel-header">
+            <h2>Supplier List</h2>
+            <button class="btn" onclick="exportSuppliers()">Export to Excel</button>
+        </div>
+
+        <div class="panel-body table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Supplier</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                        <th>Products</th>
+                    </tr>
+                </thead>
+
+                <tbody id="supplierTable">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    <div class="footer">
+        Inventory Management System
+    </div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+async function loadSuppliers() {
+
+    try {
+
+        const suppliers = await api("/api/suppliers");
+
+        const table = document.getElementById("supplierTable");
+
+        if (!suppliers.length) {
+            table.innerHTML =
+                '<tr><td colspan="6" class="empty">No suppliers found.</td></tr>';
+            return;
+        }
+
+        table.innerHTML = suppliers.map(supplier => `
+            <tr>
+                <td>${supplier.supplier_id}</td>
+                <td>${escapeHtml(supplier.supplier_name || "-")}</td>
+                <td>${escapeHtml(supplier.email || "-")}</td>
+                <td>${escapeHtml(supplier.phone || "-")}</td>
+                <td>${escapeHtml(supplier.address || "-")}</td>
+                <td>${supplier.product_count || 0}</td>
+            </tr>
+        `).join("");
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById("supplierTable").innerHTML =
+            '<tr><td colspan="6" class="empty">Unable to load suppliers.</td></tr>';
+    }
+}
+
+
+document.getElementById("supplierForm").addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    try {
+
+        await api("/api/suppliers", {
+            method: "POST",
+            body: JSON.stringify({
+                supplier_name: document.getElementById("supplierName").value,
+                email: document.getElementById("supplierEmail").value,
+                phone: document.getElementById("supplierPhone").value,
+                address: document.getElementById("supplierAddress").value
+            })
+        });
+
+        alert("Supplier added successfully");
+
+        document.getElementById("supplierForm").reset();
+
+        loadSuppliers();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+});
+function exportSuppliers() {
+    window.location.href = "/api/suppliers/export";
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    loadSuppliers();
+});
+
+</script>
+
+</body>
+</html>

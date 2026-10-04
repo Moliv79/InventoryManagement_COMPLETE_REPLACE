@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+<h1 class="page-title">Products</h1>
+<p class="page-subtitle">View, add and manage products in the inventory.</p>
+
+<div class="toolbar">
+    <input id="search" placeholder="Search product, brand or type">
+
+    <select id="categoryFilter">
+        <option value="">All Categories</option>
+    </select>
+
+    <a class="btn" href="add-product.html">Add Product</a>
+</div>
+
+<section class="panel">
+
+    <div class="panel-header">
+        <h2>Product List</h2>
+        <span id="productCount"></span>
+    </div>
+
+    <div class="panel-body table-wrap">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Brand</th>
+                    <th>Sale Price</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody id="productTable"></tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+<div id="pagination" class="pagination"></div>
+
+<div class="footer">Inventory Management System</div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+let products = [];
+let currentPage = 1;
+let totalProducts = 0;
+const productsPerPage = 50;
+
+async function loadCategories() {
+
+    const categories = await api("/api/categories");
+
+    const select = document.getElementById("categoryFilter");
+
+    select.innerHTML =
+        '<option value="">All Categories</option>' +
+        categories.map(c =>
+            `<option value="${c.category_id}">
+                ${escapeHtml(c.category_name)}
+            </option>`
+        ).join("");
+}
+
+async function loadProducts() {
+
+    const search = document.getElementById("search").value;
+    const category = document.getElementById("categoryFilter").value;
+
+    const offset = (currentPage - 1) * productsPerPage;
+
+    const url =
+        `/api/products?search=${encodeURIComponent(search)}` +
+        `&category=${encodeURIComponent(category)}` +
+        `&limit=${productsPerPage}` +
+        `&offset=${offset}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error("Unable to load products");
+    }
+
+    const data = await response.json();
+
+    products = data.products;
+    totalProducts = data.total;
+
+    const table = document.getElementById("productTable");
+
+    const start = totalProducts === 0
+        ? 0
+        : offset + 1;
+
+    const end = Math.min(
+        offset + products.length,
+        totalProducts
+    );
+
+    document.getElementById("productCount").textContent =
+        totalProducts === 0
+            ? "0 products"
+            : `Showing ${start}-${end} of ${totalProducts} products`;
+
+    table.innerHTML = products.length
+        ? products.map(p => `
+
+            <tr>
+
+                <td>${p.product_id}</td>
+
+                <td>
+                    ${escapeHtml(p.product_name)}
+                </td>
+
+                <td>
+                    ${escapeHtml(p.category_name || "-")}
+                </td>
+
+                <td>
+                    ${escapeHtml(p.brand || "-")}
+                </td>
+
+                <td>
+                    ${money(p.sale_price)}
+                </td>
+
+                <td>
+                    ${p.quantity}
+                </td>
+
+                <td>
+
+                    <span class="status ${
+                        Number(p.quantity) <= Number(p.reorder_level)
+                        ? "low"
+                        : "good"
+                    }">
+
+                        ${
+                            Number(p.quantity) <= Number(p.reorder_level)
+                            ? "Low Stock"
+                            : "In Stock"
+                        }
+
+                    </span>
+
+                </td>
+
+                <td>
+
+                    <div class="action-row">
+
+                        <a
+                            class="btn btn-small btn-secondary"
+                            href="product-details.html?id=${p.product_id}">
+                            View
+                        </a>
+
+                        <button
+                            class="btn btn-small btn-danger"
+                            onclick="deleteProduct(${p.product_id})">
+                            Delete
+                        </button>
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+        `).join("")
+
+        : `
+            <tr>
+                <td colspan="8" class="empty">
+                    No products found.
+                </td>
+            </tr>
+        `;
+
+    createPagination();
+
+}
+
+function createPagination() {
+
+    const pagination = document.getElementById("pagination");
+
+    const totalPages =
+        Math.ceil(totalProducts / productsPerPage);
+
+    if (totalPages <= 1) {
+        pagination.innerHTML = "";
+        return;
+    }
+
+    let html = "";
+
+    html += `
+        <button
+            class="btn btn-small btn-secondary"
+            ${currentPage === 1 ? "disabled" : ""}
+            onclick="changePage(${currentPage - 1})">
+            Previous
+        </button>
+    `;
+
+    const startPage =
+        Math.max(1, currentPage - 2);
+
+    const endPage =
+        Math.min(totalPages, currentPage + 2);
+
+    for (let i = startPage; i <= endPage; i++) {
+
+        html += `
+            <button
+                class="btn btn-small ${
+                    i === currentPage
+                    ? ""
+                    : "btn-secondary"
+                }"
+                onclick="changePage(${i})">
+                ${i}
+            </button>
+        `;
+
+    }
+
+    html += `
+        <button
+            class="btn btn-small btn-secondary"
+            ${currentPage === totalPages ? "disabled" : ""}
+            onclick="changePage(${currentPage + 1})">
+            Next
+        </button>
+    `;
+
+    pagination.innerHTML = html;
+}
+
+async function changePage(page) {
+
+    const totalPages =
+        Math.ceil(totalProducts / productsPerPage);
+
+    if (page < 1 || page > totalPages) {
+        return;
+    }
+
+    currentPage = page;
+
+    await loadProducts();
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+async function deleteProduct(id) {
+
+    if (!confirm("Delete this product?")) {
+        return;
+    }
+
+    try {
+
+        await api(`/api/products/${id}`, {
+            method: "DELETE"
+        });
+
+        await loadProducts();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+}
+
+let searchTimer;
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    await loadCategories();
+
+    await loadProducts();
+
+    document
+        .getElementById("search")
+        .addEventListener("input", () => {
+
+            clearTimeout(searchTimer);
+
+            searchTimer = setTimeout(() => {
+
+                currentPage = 1;
+                loadProducts();
+
+            }, 400);
+
+        });
+
+    document
+        .getElementById("categoryFilter")
+        .addEventListener("change", () => {
+
+            currentPage = 1;
+            loadProducts();
+
+        });
+
+});
+
+</script>
+
+</body>
+</html>

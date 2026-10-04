@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Product | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+<main class="main">
+
+<h1 class="page-title">Add Product</h1>
+<p class="page-subtitle">Enter the product details below.</p>
+
+<div id="message" class="message"></div>
+
+<section class="panel">
+    <div class="panel-header"><h2>Product Information</h2></div>
+    <div class="panel-body">
+        <form id="productForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input id="product_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="category_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Sub Category</label>
+                    <input id="sub_category">
+                </div>
+                <div class="form-group">
+                    <label>Brand</label>
+                    <input id="brand">
+                </div>
+                <div class="form-group">
+                    <label>Sale Price</label>
+                    <input id="sale_price" type="number" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Market Price</label>
+                    <input id="market_price" type="number" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Product Type</label>
+                    <input id="product_type">
+                </div>
+                <div class="form-group">
+                    <label>Rating</label>
+                    <input id="rating" type="number" step="0.1" min="0" max="5">
+                </div>
+                <div class="form-group">
+                    <label>Opening Stock</label>
+                    <input id="quantity" type="number" min="0" value="0" required>
+                </div>
+                <div class="form-group">
+    <label>Godown</label>
+    <select id="godown_id" required></select>
+</div>
+                <div class="form-group">
+                    <label>Reorder Level</label>
+                    <input id="reorder_level" type="number" min="0" value="10" required>
+                </div>
+                <div class="form-group full">
+                    <label>Description</label>
+                    <textarea id="description"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn" type="submit">Save Product</button>
+                <a class="btn btn-secondary" href="products.html">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+</main>
+<script src="script.js"></script>
+
+<script>
+async function loadProductCategories() {
+    const categories = await api("/api/categories");
+    document.getElementById("category_id").innerHTML =
+        '<option value="">Select Category</option>' +
+        categories.map(c => `<option value="${c.category_id}">${escapeHtml(c.category_name)}</option>`).join("");
+}
+async function loadGodowns() {
+    const godowns = await api("/api/godowns");
+
+    document.getElementById("godown_id").innerHTML =
+        '<option value="">Select Godown</option>' +
+        godowns.map(g =>
+            `<option value="${g.godown_id}">
+                ${escapeHtml(g.godown_name)} - ${escapeHtml(g.location)}
+            </option>`
+        ).join("");
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadProductCategories();
+    await loadGodowns();
+
+    document.getElementById("productForm").addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const data = {
+            product_name: document.getElementById("product_name").value.trim(),
+            category_id: document.getElementById("category_id").value,
+            sub_category: document.getElementById("sub_category").value.trim(),
+            brand: document.getElementById("brand").value.trim(),
+            sale_price: document.getElementById("sale_price").value,
+            market_price: document.getElementById("market_price").value,
+            product_type: document.getElementById("product_type").value.trim(),
+            rating: document.getElementById("rating").value || null,
+            description: document.getElementById("description").value.trim(),
+            quantity: document.getElementById("quantity").value,
+            reorder_level: document.getElementById("reorder_level").value,
+            godown_id: document.getElementById("godown_id").value
+            
+        };
+
+        try {
+            await api("/api/products", { method: "POST", body: JSON.stringify(data) });
+            showMessage("message", "Product added successfully.");
+            event.target.reset();
+            document.getElementById("quantity").value = 0;
+            document.getElementById("reorder_level").value = 10;
+        } catch (error) {
+            showMessage("message", error.message, "error");
+        }
+    });
+});
+</script>
+
+</body>
+</html>

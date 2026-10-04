@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outgoing Products | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+<h1 class="page-title">Outgoing Products</h1>
+<p class="page-subtitle">Record outgoing/sale products. Sales reduce current stock.</p>
+
+<div id="message" class="message"></div>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Add Outgoing Product</h2>
+    </div>
+
+    <div class="panel-body">
+        <form id="saleForm">
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Product</label>
+                    <select id="product_id" required>
+                        <option value="">Select Product</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Customer</label>
+                    <select id="customer_id" required>
+                        <option value="">Select Customer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input id="quantity" type="number" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Sale Price</label>
+                    <input id="sale_price" type="number" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Sale Date</label>
+                    <input id="sale_date" type="date" required>
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn">Save Outgoing Product</button>
+            </div>
+
+        </form>
+    </div>
+</section>
+
+<section class="panel">
+
+    <div class="panel-header">
+        <h2>Outgoing Records</h2>
+        <span id="saleCount"></span>
+    </div>
+
+    <div class="panel-body table-wrap">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Customer</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="saleTable"></tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+<div class="footer">Inventory Management System</div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+async function loadSaleOptions() {
+
+    try {
+
+        const productData = await api("/api/products?limit=100");
+
+        const products = productData.products || [];
+
+        const customers = await api("/api/customers");
+
+        const productSelect = document.getElementById("product_id");
+        const customerSelect = document.getElementById("customer_id");
+
+        productSelect.innerHTML =
+            '<option value="">Select Product</option>' +
+            products.map(p =>
+                `<option value="${p.product_id}" data-price="${p.sale_price}" data-stock="${p.quantity}">
+                    ${escapeHtml(p.product_name)} - Stock: ${p.quantity}
+                </option>`
+            ).join("");
+
+        customerSelect.innerHTML =
+            '<option value="">Select Customer</option>' +
+            customers.map(c =>
+                `<option value="${c.customer_id}">
+                    ${escapeHtml(c.customer_name)}
+                </option>`
+            ).join("");
+
+    } catch (error) {
+
+        showMessage("message", error.message, "error");
+
+    }
+
+}
+
+
+document.getElementById("product_id").addEventListener("change", event => {
+
+    const option = event.target.selectedOptions[0];
+
+    if (option && option.value) {
+
+        document.getElementById("sale_price").value =
+            option.dataset.price || "";
+
+    } else {
+
+        document.getElementById("sale_price").value = "";
+
+    }
+
+});
+
+
+async function loadSales() {
+
+    try {
+
+        const rows = await api("/api/sales");
+
+        document.getElementById("saleCount").textContent =
+            `${rows.length} records`;
+
+        document.getElementById("saleTable").innerHTML =
+            rows.length
+            ? rows.map(s => `
+
+                <tr>
+
+                    <td>${s.sale_id}</td>
+
+                    <td>${escapeHtml(s.product_name)}</td>
+
+                    <td>${escapeHtml(s.customer_name)}</td>
+
+                    <td>${s.quantity}</td>
+
+                    <td>${money(s.sale_price)}</td>
+
+                    <td>${money(s.quantity * s.sale_price)}</td>
+
+                    <td>${s.sale_date}</td>
+
+                    <td>
+                        <button
+                            class="btn btn-small btn-danger"
+                            onclick="deleteSale(${s.sale_id})">
+                            Delete
+                        </button>
+                    </td>
+
+                </tr>
+
+            `).join("")
+            : '<tr><td colspan="8" class="empty">No outgoing records.</td></tr>';
+
+    } catch (error) {
+
+        showMessage("message", error.message, "error");
+
+    }
+
+}
+
+
+async function deleteSale(id) {
+
+    if (!confirm("Delete this outgoing record? Stock will be returned.")) {
+        return;
+    }
+
+    try {
+
+        await api(`/api/sales/${id}`, {
+            method: "DELETE"
+        });
+
+        await loadSaleOptions();
+        await loadSales();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    document.getElementById("sale_date").value = dateToday();
+
+    await loadSaleOptions();
+
+    await loadSales();
+
+    document.getElementById("saleForm").addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        try {
+
+            await api("/api/sales", {
+                method: "POST",
+                body: JSON.stringify({
+                    product_id: document.getElementById("product_id").value,
+                    customer_id: document.getElementById("customer_id").value,
+                    quantity: document.getElementById("quantity").value,
+                    sale_price: document.getElementById("sale_price").value,
+                    sale_date: document.getElementById("sale_date").value
+                })
+            });
+
+            event.target.reset();
+
+            document.getElementById("sale_date").value = dateToday();
+
+            showMessage(
+                "message",
+                "Outgoing product added and stock reduced."
+            );
+
+            await loadSaleOptions();
+            await loadSales();
+
+        } catch (error) {
+
+            showMessage("message", error.message, "error");
+
+        }
+
+    });
+
+});
+
+</script>
+
+</body>
+</html>

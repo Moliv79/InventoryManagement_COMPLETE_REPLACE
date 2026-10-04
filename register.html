@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<main class="login-page">
+
+    <section class="panel login-box">
+
+        <div class="panel-header">
+            <h2>Inventory Management System</h2>
+        </div>
+
+        <div class="panel-body">
+
+            <form id="registerForm">
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="confirmPassword" required>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn" type="submit">
+                        Register
+                    </button>
+                </div>
+
+                <p id="message" class="message"></p>
+
+                <p>
+                    Already have an account?
+                    <a href="login.html">Login</a>
+                </p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+document.getElementById("registerForm").addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+        const password = document.getElementById("password").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+
+        if (password !== confirmPassword) {
+            showMessage(
+                "message",
+                "Passwords do not match",
+                "error"
+            );
+            return;
+        }
+
+        try {
+
+            await api("/api/register", {
+                method: "POST",
+                body: JSON.stringify({
+                    username: document.getElementById("username").value.trim(),
+                    email: document.getElementById("email").value.trim(),
+                    password: password
+                })
+            });
+
+            showMessage(
+                "message",
+                "Account created successfully",
+                "success"
+            );
+
+            setTimeout(() => {
+                window.location.href = "login.html";
+            }, 1500);
+
+        } catch (error) {
+
+            showMessage(
+                "message",
+                error.message,
+                "error"
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>

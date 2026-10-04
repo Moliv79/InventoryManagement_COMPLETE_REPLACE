@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Products | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-title">Inventory Management System</div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Main Menu</div>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="categories.html">Categories</a>
+    <a href="suppliers.html">Suppliers</a>
+    <a href="customers.html">Customers</a>
+    <a href="purchases.html">Purchase Products</a>
+    <a href="sales.html">Outgoing Products</a>
+    <a href="stock.html">Stock</a>
+    <a href="orders.html">Orders</a>
+    <a href="delivery.html">Delivery</a>
+    <a href="reports.html">Reports</a>
+</aside>
+
+<main class="main">
+
+<h1 class="page-title">Purchase Products</h1>
+<p class="page-subtitle">Record stock received from suppliers. Purchases increase current stock.</p>
+
+<div id="message" class="message"></div>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Add Purchase</h2>
+    </div>
+
+    <div class="panel-body">
+        <form id="purchaseForm">
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Product</label>
+                    <select id="product_id" required>
+                        <option value="">Select Product</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Supplier</label>
+                    <select id="supplier_id" required>
+                        <option value="">Select Supplier</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input id="quantity" type="number" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Purchase Price</label>
+                    <input id="purchase_price" type="number" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Purchase Date</label>
+                    <input id="purchase_date" type="date" required>
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn">Save Purchase</button>
+            </div>
+
+        </form>
+    </div>
+</section>
+
+<section class="panel">
+
+    <div class="panel-header">
+        <h2>Purchase Records</h2>
+        <span id="purchaseCount"></span>
+    </div>
+
+    <div class="panel-body table-wrap">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Supplier</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="purchaseTable"></tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+<div class="footer">Inventory Management System</div>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+async function loadPurchaseOptions() {
+
+    try {
+
+        const productData = await api("/api/products?limit=100");
+
+        const products = productData.products || [];
+
+        const suppliers = await api("/api/suppliers");
+
+        const productSelect = document.getElementById("product_id");
+        const supplierSelect = document.getElementById("supplier_id");
+
+        productSelect.innerHTML =
+            '<option value="">Select Product</option>' +
+            products.map(p =>
+                `<option value="${p.product_id}">
+                    ${escapeHtml(p.product_name)}
+                </option>`
+            ).join("");
+
+        supplierSelect.innerHTML =
+            '<option value="">Select Supplier</option>' +
+            suppliers.map(s =>
+                `<option value="${s.supplier_id}">
+                    ${escapeHtml(s.supplier_name)}
+                </option>`
+            ).join("");
+
+    } catch (error) {
+
+        showMessage("message", error.message, "error");
+
+    }
+
+}
+
+
+async function loadPurchases() {
+
+    try {
+
+        const rows = await api("/api/purchases");
+
+        const table = document.getElementById("purchaseTable");
+
+        document.getElementById("purchaseCount").textContent =
+            `${rows.length} records`;
+
+        table.innerHTML = rows.length
+            ? rows.map(p => `
+
+                <tr>
+
+                    <td>${p.purchase_id}</td>
+
+                    <td>${escapeHtml(p.product_name)}</td>
+
+                    <td>${escapeHtml(p.supplier_name)}</td>
+
+                    <td>${p.quantity}</td>
+
+                    <td>${money(p.purchase_price)}</td>
+
+                    <td>${money(p.quantity * p.purchase_price)}</td>
+
+                    <td>${p.purchase_date}</td>
+
+                    <td>
+                        <button
+                            class="btn btn-small btn-danger"
+                            onclick="deletePurchase(${p.purchase_id})">
+                            Delete
+                        </button>
+                    </td>
+
+                </tr>
+
+            `).join("")
+            : '<tr><td colspan="8" class="empty">No purchase records.</td></tr>';
+
+    } catch (error) {
+
+        showMessage("message", error.message, "error");
+
+    }
+
+}
+
+
+async function deletePurchase(id) {
+
+    if (!confirm("Delete this purchase? Stock will be reduced by the purchase quantity.")) {
+        return;
+    }
+
+    try {
+
+        await api(`/api/purchases/${id}`, {
+            method: "DELETE"
+        });
+
+        await loadPurchases();
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    document.getElementById("purchase_date").value = dateToday();
+
+    await loadPurchaseOptions();
+
+    await loadPurchases();
+
+    document.getElementById("purchaseForm").addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        try {
+
+            await api("/api/purchases", {
+                method: "POST",
+                body: JSON.stringify({
+                    product_id: document.getElementById("product_id").value,
+                    supplier_id: document.getElementById("supplier_id").value,
+                    quantity: document.getElementById("quantity").value,
+                    purchase_price: document.getElementById("purchase_price").value,
+                    purchase_date: document.getElementById("purchase_date").value
+                })
+            });
+
+            event.target.reset();
+
+            document.getElementById("purchase_date").value = dateToday();
+
+            showMessage(
+                "message",
+                "Purchase added and stock increased."
+            );
+
+            await loadPurchaseOptions();
+            await loadPurchases();
+
+        } catch (error) {
+
+            showMessage("message", error.message, "error");
+
+        }
+
+    });
+
+});
+
+</script>
+
+</body>
+</html>

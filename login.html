@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login | Inventory Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<main class="login-page">
+
+    <section class="panel login-box">
+
+        <div class="panel-header">
+            <h2>Inventory Management System</h2>
+        </div>
+
+        <div class="panel-body">
+
+            <form id="loginForm">
+                <div class="form-group">
+    <label>Login As</label>
+    <select id="loginType" required>
+        <option value="customer">Customer</option>
+        <option value="admin">Admin</option>
+    </select>
+</div>
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <input
+                        type="text"
+                        id="username"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        required
+                    >
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn" type="submit">
+                        Login
+                    </button>
+                </div>
+                <p>
+    Don't have an account?
+    <a href="register.html">Register</a>
+</p>
+
+                <p id="message" class="message"></p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+</main>
+
+<script src="script.js"></script>
+
+<script>
+
+document.getElementById("loginForm").addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+        try {
+
+            const result = await api("/api/login", {
+                method: "POST",
+                body: JSON.stringify({
+                    username: document.getElementById("username").value.trim(),
+                    password: document.getElementById("password").value
+                })
+            });
+
+            localStorage.setItem(
+                "inventoryUser",
+                JSON.stringify(result.user)
+            );
+
+            window.location.href = "index.html";
+
+        } catch (error) {
+
+            showMessage(
+                "message",
+                error.message,
+                "error"
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>
